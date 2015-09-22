@@ -129,6 +129,9 @@ def load_pickle(args):
         user_data['API_ACCESS_TOKEN'] = "QWjz212GspMHH9h"
         user_data['API_DEVICE_TYPE']  = "com.crunchyroll.iphone"
 
+
+        user_data.setdefault('premium_type', 'anime')
+
         user_data.setdefault('lastreported', (current_datetime -
                                               durel.relativedelta(hours = +24)))
         args.user_data = user_data
@@ -151,6 +154,8 @@ def load_pickle(args):
                                         durel.relativedelta(hours = +24))
         user_data['lastreported']    = (current_datetime -
                                         durel.relativedelta(hours = +24))
+
+        user_data['premium_type']    = 'anime'
         user_data['auth_token']      = ''
         user_data['session_expires'] = (current_datetime -
                                         durel.relativedelta(hours = +24))
@@ -273,6 +278,9 @@ def _start_session(args,
             args.user_data['auth_token']   = request['data']['auth']
             args.user_data['auth_expires'] = dateutil.parser.parse(request['data']['expires'])
 
+            args.user_data['premium_type'] = 'anime'
+
+
             log("CR: Login successful")
 
         elif request['error'] is True:
@@ -308,6 +316,8 @@ def _restart_session(args,
     if request['error'] is False:
         args.user_data['session_id']      = request['data']['session_id']
         args.user_data['auth_expires']    = dateutil.parser.parse(request['data']['expires'])
+        args.user_data['premium_type']    = 'anime'
+
         args.user_data['auth_token']      = request['data']['auth']
         # 4 hours is a guess. Might be +/- 4.
         args.user_data['session_expires'] = (current_datetime +
@@ -397,11 +407,25 @@ def _post_login(args,
                 notice_msg,
                 current_datetime):
 
+
     # Cache queued series
     if 'queue' not in args.user_data:
         args.user_data['queue'] = get_queued(args)
 
-    return True
+        return True
+
+    else:
+#        log("CR: User is not a premium member")
+#        xbmc.executebuiltin('Notification(' + notice_msg + ','
+#                            + acc_type_error + ',5000)')
+#
+#        crm.add_item(args,
+#                     {'title': acc_type_error,
+#                      'mode':  'fail'})
+#        crm.endofdirectory('none')
+
+        return True
+
 
 
 def list_series(args):
