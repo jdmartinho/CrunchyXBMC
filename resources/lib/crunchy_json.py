@@ -105,6 +105,8 @@ def load_pickle(args):
             user_data['API_LOCALE']  = "esES"
         elif subtitle_language == "9":
             user_data['API_LOCALE']  = "itIT"
+        elif subtitle_language == "10":
+            user_data['API_LOCALE']  = "ruRU"
 
         user_data['username'] = args._addon.getSetting("crunchy_username")
         user_data['password'] = args._addon.getSetting("crunchy_password")
