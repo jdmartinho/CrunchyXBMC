@@ -159,6 +159,10 @@ msgctxt "#30309"
 msgid "Espanol (Espana)"
 msgstr "Spanisch (Spanien)"
 
+msgctxt "#30310"
+msgid "Russian (Russia)"
+msgstr "Russisch (Russland)"
+
 msgctxt "#30311"
 msgid "Resume Video Playback"
 msgstr "Wiedergabe fortsetzen"
