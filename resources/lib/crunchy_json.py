@@ -1051,7 +1051,8 @@ def start_playback(args):
     """Play video stream with selected quality.
 
     """
-    res_quality = ['low', 'mid', 'high', 'ultra', 'adaptive']
+    #res_quality = ['low', 'mid', 'high', 'ultra', 'adaptive']
+    res_quality = [3, 2, 0, 1, 'adaptive'] #Explained on commented line above
     if not hasattr(args, 'quality'): #Normal playback
         quality     = res_quality[int(args._addon.getSetting("video_quality"))]
     else: #One-off at different quality
@@ -1100,28 +1101,23 @@ def start_playback(args):
 
     if request['error'] is False:
         if request['data']['stream_data'] is not None:
-            for stream in request['data']['stream_data']['streams']:
-                allurl[stream['quality']] = stream['url']
-
-            log("CR: start_playback: streams found: " + str(allurl), xbmc.LOGDEBUG)
-            is_adaptive = False
-            if quality in allurl:
-                is_adaptive = quality == 'adaptive'
-                url = allurl[quality]
-            elif quality == 'ultra' and 'high' in allurl:
-                url = allurl['high']
-            elif 'mid' in allurl:
-                url = allurl['mid']
-            elif 'low' in allurl:
-                url = allurl['low']
-            elif 'adaptive' in allurl:
-                is_adaptive = True
-                url = allurl['adaptive']
-            else:
-				# none of the above qualities found
+            try:
+                stream = request['data']['stream_data']['streams'][0]['url']
+            except:
+                #no playback stream found
                 xbmcgui.Dialog().notification("Crunchyroll", "Sorry, this video is not available yet.", xbmcgui.NOTIFICATION_INFO)
                 log("CR: start_playback: this video is not available yet..")
                 return
+
+
+            log("CR: start_playback: streams found: " + str(stream), xbmc.LOGDEBUG)
+            is_adaptive = False
+            if quality == "adaptive":
+                is_adaptive = True
+                url = stream
+            else:
+                matches = re.findall(r",([0-9]+\.mp4)", stream)
+                url = re.sub(r"(,[0-9]+\.mp4){5}", "," + matches[quality], stream)
 
             item = xbmcgui.ListItem(args.name, path=url)
             # TVShowTitle, Season, and Episode are used by the Trakt.tv add-on to determine what is being played
@@ -1136,9 +1132,9 @@ def start_playback(args):
             autoresume = ["no","yes","ask"][int(args._addon.getSetting("autoresume"))]
             if (autoresume == "no") or (int(resumetime)<30):
                 resumetime = "0"
-               
+
             item.setProperty('ResumeTime', resumetime)
-            
+
             # Let inputstream.adpative handle adatpive playback
             if is_adaptive:
                 item.setProperty('inputstreamaddon', 'inputstream.adaptive')
