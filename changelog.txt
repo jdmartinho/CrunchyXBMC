@@ -1,3 +1,8 @@
+[B]2.2.3[/B]
+Adaptive Quality
+Added languages: Dutch, Hebrew
+Added sorting
+Numerous fixes
 [B]2.2.2[/B]
 Added German, thanks MrKrabat
 Removed all sorting.  For Reals
