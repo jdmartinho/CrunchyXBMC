@@ -69,17 +69,17 @@ def load_pickle(args):
     pickle_path = os.path.join(base_path, "cruchyPickle")
 
     current_datetime = datetime.datetime.now(dateutil.tz.tzutc())
-	
+
     if not os.path.exists(base_path):
          os.makedirs(base_path)
-	
+
     try:
         # Load persistent vars
         user_data = pickle.load(open(pickle_path))
 
     except:
         log("CR: Unable to load pickle")
-        
+
         user_data = {}
 
     try:
@@ -129,7 +129,6 @@ def load_pickle(args):
         user_data['API_ACCESS_TOKEN'] = "QWjz212GspMHH9h"
         user_data['API_DEVICE_TYPE']  = "com.crunchyroll.iphone"
 
-        user_data.setdefault('premium_type', 'UNKNOWN')
         user_data.setdefault('lastreported', (current_datetime -
                                               durel.relativedelta(hours = +24)))
         args.user_data = user_data
@@ -152,7 +151,6 @@ def load_pickle(args):
                                         durel.relativedelta(hours = +24))
         user_data['lastreported']    = (current_datetime -
                                         durel.relativedelta(hours = +24))
-        user_data['premium_type']    = 'UNKNOWN'
         user_data['auth_token']      = ''
         user_data['session_expires'] = (current_datetime -
                                         durel.relativedelta(hours = +24))
@@ -212,7 +210,6 @@ def load_pickle(args):
     else:
         del user_data['session_id']
         del user_data['auth_expires']
-        del user_data['premium_type']
         del user_data['auth_token']
         del user_data['session_expires']
 
@@ -275,9 +272,6 @@ def _start_session(args,
         if request['error'] is False:
             args.user_data['auth_token']   = request['data']['auth']
             args.user_data['auth_expires'] = dateutil.parser.parse(request['data']['expires'])
-            args.user_data['premium_type'] = ('free'
-                                                  if request['data']['user']['premium'] == ''
-                                                  else request['data']['user']['premium'])
 
             log("CR: Login successful")
 
@@ -314,9 +308,6 @@ def _restart_session(args,
     if request['error'] is False:
         args.user_data['session_id']      = request['data']['session_id']
         args.user_data['auth_expires']    = dateutil.parser.parse(request['data']['expires'])
-        args.user_data['premium_type']    = ('free'
-                                                 if request['data']['user']['premium'] == ''
-                                                 else request['data']['user']['premium'])
         args.user_data['auth_token']      = request['data']['auth']
         # 4 hours is a guess. Might be +/- 4.
         args.user_data['session_expires'] = (current_datetime +
@@ -337,7 +328,6 @@ def _restart_session(args,
         # Remove user_data so a new session is started next time
         del args.user_data['session_id']
         del args.user_data['auth_expires']
-        del args.user_data['premium_type']
         del args.user_data['auth_token']
         del args.user_data['session_expires']
 
@@ -397,7 +387,6 @@ def _test_session(args,
 
         del args.user_data['session_id']
         del args.user_data['auth_expires']
-        del args.user_data['premium_type']
         del args.user_data['auth_token']
         del args.user_data['session_expires']
 
@@ -407,33 +396,12 @@ def _test_session(args,
 def _post_login(args,
                 notice_msg,
                 current_datetime):
-    """Check premium type and report usage.
 
-    """
-    acc_type_error = args._lang(30312)
+    # Cache queued series
+    if 'queue' not in args.user_data:
+        args.user_data['queue'] = get_queued(args)
 
-    # Verify user is premium
-    if args.user_data['premium_type'] in 'anime|drama|manga':
-        log("CR: User is a premium "
-            + str(args.user_data['premium_type']) + " member")
-
-        # Cache queued series
-        if 'queue' not in args.user_data:
-            args.user_data['queue'] = get_queued(args)
-
-        return True
-
-    else:
-        log("CR: User is not a premium member")
-        xbmc.executebuiltin('Notification(' + notice_msg + ','
-                            + acc_type_error + ',5000)')
-
-        crm.add_item(args,
-                     {'title': acc_type_error,
-                      'mode':  'fail'})
-        crm.endofdirectory('none')
-
-        return False
+    return True
 
 
 def list_series(args):
@@ -660,7 +628,7 @@ def list_media_items(args, request, series_name, season, mode, fanart):
     """
     for media in request:
         ordering = 0
-	
+
         if (mode == "queue"):
             ordering = media['ordering']
         if (mode == "history" or mode == "queue"):
@@ -787,7 +755,7 @@ def list_media_items(args, request, series_name, season, mode, fanart):
             percent = int(round(float(playhead) / float(duration) * 100))
         else :
             percent = 0
-            
+
         crm.add_item(args,
                      {'title':        name.encode("utf8"),
                       'mode':         'videoplay',
@@ -1090,7 +1058,7 @@ def start_playback(args):
          args.duration = str(request.get('data',{}).get('duration','0'))
 
     resumetime = str(request['data']['playhead'])
-    
+
     if int(resumetime) > 0:
         playcount = 0
     else:
@@ -1237,7 +1205,7 @@ def get_random(args):
               'fields':   fields}
 
     request = makeAPIRequest(args, 'info', values)
-    
+
     #And try to list the show, just like 'goto series'
     try:
         args.series_id = request['data']['series_id']
@@ -1248,7 +1216,7 @@ def get_random(args):
         #And then list the series
         list_collections(args,True)
 
-   
+
 
 def pretty(d, indent=1):
     """Pretty printer for dictionaries.
@@ -1275,80 +1243,67 @@ def makeAPIRequest(args, method, options):
     """Make Crunchyroll JSON API call.
 
     """
-    if args.user_data['premium_type'] in 'anime|drama|manga|UNKNOWN':
-        log("CR: makeAPIRequest: get JSON")
+    path = args._addon.getAddonInfo('path')
+    path = os.path.join(path, 'cacert.pem')
+    # TODO: Update cert master file on EVERY UPDATE!
 
-        path = args._addon.getAddonInfo('path')
-        path = os.path.join(path, 'cacert.pem')
-        # TODO: Update cert master file on EVERY UPDATE!
-        
-        values = {'version': args.user_data['API_VERSION'],
-                  'locale':  args.user_data['API_LOCALE']}
+    values = {'version': args.user_data['API_VERSION'],
+              'locale':  args.user_data['API_LOCALE']}
 
-        if method != 'start_session':
-            values['session_id'] = args.user_data['session_id']
+    if method != 'start_session':
+        values['session_id'] = args.user_data['session_id']
 
-        values.update(options)
-        options = urllib.urlencode(values)
-        
-        if sys.version_info >= (2, 7, 9):
-            handler = urllib2.HTTPSHandler()
-        else:
-            handler = urllib2_ssl.HTTPSHandler(ca_certs=path)
+    values.update(options)
+    options = urllib.urlencode(values)
 
-        opener = urllib2.build_opener(handler)
-        opener.addheaders = args.user_data['API_HEADERS']
-        urllib2.install_opener(opener)
-
-        url = args.user_data['API_URL'] + "/" + method + ".0.json"
-
-        log("CR: makeAPIRequest: url = %s" % url)
-        log("CR: makeAPIRequest: options = %s" % options)
-
-
-        try:
-            en = ev = None
-
-            req = opener.open(url, options)
-            json_data = req.read()
-
-            if req.headers.get('content-encoding', None) == 'gzip':
-                json_data = gzip.GzipFile(fileobj=StringIO.StringIO(json_data))
-                json_data = json_data.read().decode('utf-8', 'ignore')
-
-            req.close()
-
-            request = json.loads(json_data)
-
-        except (httplib.BadStatusLine,
-                socket.error,
-                urllib2.HTTPError,
-                urllib2.URLError) as e:
-
-            log("CR: makeAPIRequest: Connection failed: %r" % e,
-                xbmc.LOGERROR)
-
-            en, ev = sys.exc_info()[:2]
-        finally:
-            # Return dummy response if connection failed
-            if en is not None:
-                request = {'code':    'error',
-                           'message': "Connection failed: %r, %r" % (en, ev),
-                           'error':   True}
-
-        #log("CR: makeAPIRequest: request = %s" % str(request), xbmc.LOGDEBUG)
-        log("CR: makeAPIRequest: reply =", xbmc.LOGDEBUG)
-        pretty(request)
-
+    if sys.version_info >= (2, 7, 9):
+        handler = urllib2.HTTPSHandler()
     else:
-        pt = args.user_data['premium_type']
-        s  = "Premium type check failed, premium_type:"
+        handler = urllib2_ssl.HTTPSHandler(ca_certs=path)
 
-        request = {'code':    'error',
-                   'message': "%s %s" % (s, pt),
-                   'error':   True}
+    opener = urllib2.build_opener(handler)
+    opener.addheaders = args.user_data['API_HEADERS']
+    urllib2.install_opener(opener)
 
-        log("CR: makeAPIRequest: %s %s" % (s, pt), xbmc.LOGERROR)
+    url = args.user_data['API_URL'] + "/" + method + ".0.json"
+
+    log("CR: makeAPIRequest: url = %s" % url)
+    log("CR: makeAPIRequest: options = %s" % options)
+
+
+    try:
+        en = ev = None
+
+        req = opener.open(url, options)
+        json_data = req.read()
+
+        if req.headers.get('content-encoding', None) == 'gzip':
+            json_data = gzip.GzipFile(fileobj=StringIO.StringIO(json_data))
+            json_data = json_data.read().decode('utf-8', 'ignore')
+
+        req.close()
+
+        request = json.loads(json_data)
+
+    except (httplib.BadStatusLine,
+            socket.error,
+            urllib2.HTTPError,
+            urllib2.URLError) as e:
+
+        log("CR: makeAPIRequest: Connection failed: %r" % e,
+            xbmc.LOGERROR)
+
+        en, ev = sys.exc_info()[:2]
+    finally:
+        # Return dummy response if connection failed
+        if en is not None:
+            request = {'code':    'error',
+                       'message': "Connection failed: %r, %r" % (en, ev),
+                       'error':   True}
+
+    #log("CR: makeAPIRequest: request = %s" % str(request), xbmc.LOGDEBUG)
+    log("CR: makeAPIRequest: reply =", xbmc.LOGDEBUG)
+    pretty(request)
 
     return request
 
